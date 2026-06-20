@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Image Studio</title>
+<style>
+body{font-family:Arial,sans-serif;background:#0f172a;color:#fff;max-width:520px;margin:auto;padding:18px}
+.card{background:#1e293b;padding:18px;border-radius:20px}
+textarea{width:100%;height:120px;border:none;border-radius:15px;padding:12px;background:#334155;color:#fff}
+button{width:100%;padding:14px;border:none;border-radius:15px;margin-top:10px;cursor:pointer}
+#generate{background:#4f46e5;color:white}
+#surprise{background:#334155;color:white}
+img{max-width:100%;border-radius:18px;margin-top:15px}
+pre{white-space:pre-wrap;color:#ffb4b4}
+</style>
+</head>
+<body>
+<h1>✨ AI Image Studio</h1>
+
+<div class="card">
+<input type="file" id="imageInput" accept="image/*"><br><br>
+<img id="preview" style="display:none">
+
+<textarea id="prompt" placeholder="Describe what to create or edit..."></textarea>
+
+<button id="surprise" onclick="surpriseMe()">✨ Surprise Me</button>
+<button id="generate" onclick="generate()">Generate</button>
+
+<div id="status"></div>
+<div id="result"></div>
+<pre id="error"></pre>
+</div>
+
+<script>
+const API_KEY="YOUR_OPENROUTER_KEY";
+
+const prompts=[
+"A futuristic Tokyo street in the rain",
+"A cozy cabin in snowy mountains",
+"A lion king sitting on a throne",
+"A cyberpunk cat with sunglasses",
+"A floating island above the sea"
+];
+
+function surpriseMe(){
+document.getElementById("prompt").value=prompts[Math.floor(Math.random()*prompts.length)];
+}
+
+imageInput.onchange=e=>{
+let f=e.target.files[0];
+if(f){
+preview.src=URL.createObjectURL(f);
+preview.style.display="block";
+}
+};
+
+async function generate(){
+status.innerText="Generating...";
+error.textContent="";
+result.innerHTML="";
+
+try{
+let content=[{type:"text",text:prompt.value}];
+
+if(imageInput.files[0]){
+let base64=await new Promise(res=>{
+let r=new FileReader();
+r.onload=()=>res(r.result);
+r.readAsDataURL(imageInput.files[0]);
+});
+
+content.push({
+type:"image_url",
+image_url:{url:base64}
+});
+}
+
+let response=await fetch("https://openrouter.ai/api/v1/chat/completions",{
+method:"POST",
+headers:{
+Authorization:`Bearer ${API_KEY}`,
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+model:"google/gemini-2.5-flash-image",
+modalities:["text","image"],
+messages:[{role:"user",content}]
+})
+});
+
+let data=await response.json();
+
+if(!response.ok) throw new Error(JSON.stringify(data,null,2));
+
+let url=data.choices[0].message.images[0].image_url.url;
+
+result.innerHTML=`<img src="${url}"><br><a download="image.png" href="${url}">Download</a>`;
+status.innerText="Done";
+}catch(e){
+status.innerText="Failed";
+error.textContent=e.message;
+}
+}
+</script>
+</body>
+</html>
